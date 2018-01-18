@@ -1,0 +1,217 @@
+	1		2		4		8		16		32		64		128
+pthread	0.000097	0.000380	0.000889	0.001953	0.002967	0.005784	0.011132	0.020561	
+(t1=t2=4096,zero)
+pthread	0.000018	0.000022	0.000454	0.000469	0.000847	0.001373	0.002706	0.005274
+(t1=1,t2=4096,zero)
+
+	256
+pthread	0.010305
+(t1=128,t2=4096,one)
+
+	1		2		4		8		16		32		64		128
+openmp	0.001678	0.011374	0.080130	0.320520	0.973364	1.666937	1.914192	1.926728
+(t1=4096,t2=4096,zero)
+	256		512		1024		2048		4096
+	1.713202	1.366589	1.449774	1.450529	1.453364
+
+	1		2		4		8		16		32		64		128
+openmp	0.000001	0.000748	0.005663	0.038520	0.210023	0.687539	1.360024	1.995371
+(t1=1,t2=4096,one)
+	256		512		1024		2048		4096
+	2.132535	1.867696	1.541554	1.584683	1.510023
+
+	1		2		4		8		16		32		64		128
+openmp	0.001118	0.010652	0.080130	0.442780	1.010581	1.634233	1.926771	2.012053
+(t1=64,t2=4096,one)
+	256		512		1024		2048		4096
+	2.136312	1.849217	1.534273	1.581707	1.582780
+
+	1		2		4		8		16		32		64		128
+openmp	0.001049	0.011374	0.045886	0.352046	0.965161	1.654894	1.926096	1.999385	
+(t1=64,t2=64,multi)
+	256		512		1024		2048		4096
+	2.182430	2.471590	2.793760	3.159181	3.629208
+openmp	t1=64,t2=128
+
+	1		2		4		8		16		32		64		128
+cuda	0.000008	0.000068	0.000544	0.004290	0.017766	0.139136	1.931000	12.114996
+(t1=4096,t2=4096,zero)
+	256		512		1024		2048		4096
+	34.079349	65.933481	77.453501	160.419344	262.184103
+
+	1		2		4		8 		16		32		64		128
+cuda	0.000008	0.000066	0.000524	0.004129	0.031053	0.135521	0.844544	4.378562
+(t1=1,t2=4096,one)
+	256		512		1024		2048		4096
+	25.253879	49.266835	71.601179	165.083424	286.74508
+						
+	1		2		4		8		16		32		64		128
+cuda	0.000009	0.000035	0.000540	0.002235	0.034581	0.264255	1.952085	7.382989
+(t1=1024,t2=4096,one)
+	256		512		1024		2048		4096	
+	41.085240	58.036377	77.887236	163.726811	286.156954
+
+	1		2		4		8		16		32		64		128
+cuda	0.000009	0.000067	0.000533	0.004301	0.017844	0.261415	1.067591	7.295727
+(t1=1024,t2=1024,multi)
+	256		512		1024		2048		4096
+	32.146525	59.316270	78.939405	162.670123	258.265682
+cuda	t1=1024,t2=4096
+
+Strassen's Matrix Multiplication in Parallel Environments
+
+Abstract
+I focus on how to calculate $A \times B$ quickly and accomplish efficient single-precision matrix multiplication in parallel environments of Strassen's algorithm as well as of Winograd's variant. Supporting $A,B$ are $n\times n(n=2^k)$ matrices, I give the best parameters of this algorithm in different parallel environments.
+
+Keywords
+matrix multiplication; Strassen's algorithm; pthread; OpenMP; CUDA;
+
+Introduction
+Matrix multiplication is an important problem in parallel computing. In single-core algorithm, the complexity of classical three-loop algorithm is $O(n^3)$. Of these latter lower complexity algorithms, Strassen's original $O(n^{2.81})$ algorithm [1] and Winograd's variant [2] of this algorithm, whose asymptotic complexity is also $O(n^{2.81})$ are considered the most practical. Hence, this is the algorithm I focus on in my paper. 
+Stassen's algorithm compute the product $C$ of two matrices $A$ and $B$ by first decomposing each matrix into 4 roughly equal size blocks as in Figure 1. Strassen's algorithm [1] computes $C$ by following equations:
+\[
+	\begin{split}
+		M_1=&(A_{11}+A_{12})(B_{11}+B_{22})\\
+		M_2=&(A_{21}+A_{22})B_{11}\\
+		M_3=&A_{11}(B_{12}-B_{22})\\
+		M_4=&A_{22}(B_{21}-B_{11})\\
+		M_5=&(A_{11}+A_{12})B_22\\
+		M_6=&(A_{21}-A_{11})(B_{11}+B_{12})\\
+		M_7=&(A_{12}-A_{22})(B_{21}+B_{22})\\
+		C_{11}=&M_1+M_4-M_5+M_7\\
+		C_{12}=&M_3+M_5\\
+		C_{21}=&M_2+M_4\\
+		C_{22}=&M_1-M_2+M_3+M_6\\
+	\end{split}
+\]
+Winograd's variant of Strassen's method uses the following equations:
+\[
+	\begin{split}
+		S_1=&A_{21}+A_{22}\\
+		S_2=&S_1-A_{11}\\
+		S_3=&A_{11}-A_{21}\\
+		S_4=&A_{12}-S_2\\
+		S_5=&B_{12}-B_{11}\\
+		S_6=&B_{22}-S_5\\
+		S_7=&B_{22}-B_{12}\\
+		S_8=&S_6-B_{21}\\
+		M_1=&S_2\times S_6\\
+		M_2=&A_{11}\times B_{11}\\
+		M_3=&A_{12}\times B_{21}\\
+		M_4=&S_3\times S_7\\
+		M_5=&S_1\times S_5\\
+		M_6=&S_4\times B_{22}\\
+		M_7=&A_{22}\times S_6\\
+		V_1=&M_1+M_2\\
+		V_2=&V_1+M_4\\
+		C_{11}=&M_2+M_3\\
+		C_{12}=&V_1+M_5+M_6\\
+		C_{21}=&V_2-M_7\\
+		C_{22}=&V_2+M_5\\	
+	\end{split}
+\]
+It seems that the recursive algorithm this lots of temporary matrices such as $S, M, V$. To solve this problem, Douglas el al. [3] provide an implementation of Strassen's algorithm that uses two temporary matrices at each level of the recursion. 
+
+methodology
+Thought the complexity of Strassen's algorithm is $O(n^{2.81})$, the constant factor is very large related to the level of recursion and the size of temporary matrices. Junjie Li el al. [4] describe an efficient algorithm and the best parameters in GPUs. I will achieve it in both CPUs and GPUs and find out the best parameters in the experiment. Kernels are the parallel functions.
+
+\hline
+1 & C=A\times B & mul(A, B, C)\\
+\hline
+
+\hline
+1 & (A_{11},A_{12},A_{21},A_{22})=A & split(A_{11},A_{12},A_{21},A_{22},A)\\
+\hline
+2 & (B_{11},B_{12},B_{21},B_{22})=B & split(B_{11},B_{12},B_{21},B_{22},B)\\
+\hline
+3 & T_1=A_{11}-A_{21} & sub(A_{11},A_{21},T_1)\\
+\hline
+4 & T_2=B_{22}-B_{12} & sub(B_{22},B_{12},T_2)\\
+\hline
+5 & C_{21}=T_1\times T_2 & mul(T_1,T_2,C_21)\\
+\hline
+6 & T_1=A_{21}+A_{22} & add(A_{21},A_{22},T_1)\\
+\hline
+7 & T_2=B_{12}-B_{11} & sub(B_{12},B_{11},T_2)\\
+\hline
+8 & C_{22}=T_1\times T_2 & mul(T_1,T_2,C_{22})\\
+\hline
+9 & T_1=T_1-A_{11} & sub(T_1,A_{11},T_1)\\
+\hline
+10 & T_2=B_{22}-T_2 & sub(B_{22},T_2,C_22)\\
+\hline
+11 & C_{11}=T_1\times T_2 & mul(T_1,T_2,C_{11})\\
+\hline
+12 & T_1=A_{12}-T_1 & sub(A_{12},T_1,T_1)\\
+\hline
+13 & C_{12}=T_1\times B_{22}\\
+14 & C_{12}=C_{22}+C_{12} & mul_add(T_1,B_{22},C_{22},C_{12})\\
+\hline
+15 & T_1=A_{11}\times B_{11}\\
+16 & C_{11}=C_{11}+T_1\\
+17 & C_{12}=C_{11}+C_{12}\\
+18 & C_{11}=C_{11}+C_{21} & mul_inc_inc_inc(A_{11},B_{11},T_1,C_{21},C_{11},C_{12})\\
+\hline
+19 & T_2=T_2-B_{21} &sub(T_2,B_21,T_2)\\
+\hline
+20 & C_{21}=A_{22}\times T_2\\
+19 & C_{21}=C_{11}-C_{21}\\
+21 & C_{22}=C_{11}+C_{22} & mul_sub_inc(A_{22},T_2,C_{11},C_{21},C_{22})\\
+\hline
+22 & C_{11}=A_{12}\times B_{21}\\
+23 & C_{11}=T_1+C_{11} & mul_add(A_{12},B_{21},T_1,C_{11})\\
+\hline
+24 & C=(C_{11},C_{12},C_{21},C_22) & merge(C_{11},C_{12},C_{21},C_{22},C)\\
+
+\[
+	\begin{split}
+		& strassen(A,B,C,n)\\
+		& \qquad if n\leq\tau_1\\
+		& \qquad\qquad zero level adaption in figure\\ 
+		& \qquad else if n\leq\tau_2\\
+		& \qquad\qquad one level adaption in figure\\
+		& \qquad else\\
+		& \qquad\qquad T_1=A_{11}-A_{21};T_2=B_{22}-B_{12}\\
+		& \qquad\qquad strassen(T_1,T_2,C_{21},n/2)\\
+		& \qquad\qquad T_1=A_{21}+A_{22};T_2=B_{12}-B_{11}\\
+		& \qquad\qquad strassen(T_1,T_2,C_{22},n/2)\\
+		& \qquad\qquad T_1=T_1-A_{11};T_2=B_{22}-T_2\\
+		& \qquad\qquad strassen(T_1,T_2,C_{11},n/2)\\
+		& \qquad\qquad T_1=A_{12}-T_1\\
+		& \qquad\qquad strassen(T_1,B_{22},C_{12},n/2)\\
+		& \qquad\qquad C_{12}=C_{12}+C_{22}\\
+		& \qquad\qquad strassen(A_{11},B_{11},T_1,n/2)\\
+		& \qquad\qquad C_{12}=C_{11}+C_{12}+T_1\\
+		& \qquad\qquad C_{11}=C_{11}+C_{21}+T_1\\
+		& \qquad\qquad T_2=T_2-B_{21}\\
+		& \qquad\qquad strassen(A_{22},T_2,C_{21},n/2)\\
+		& \qquad\qquad C_{21}=C_{11}-C_{21}\\
+		& \qquad\qquad C_{22}=C_{11}+C_{22}\\
+		& \qquad\qquad strassen(A_{12},B_{21},C_{11},n/2)\\
+		& \qquad\qquad C_{11}=C_{11}+T_1\\
+	\end{split}
+\]
+
+experiment
+First, I will let $\tau_1=\tau_2=+\infty$, so I can get GFLOPS/s using zero level adaptation. Then, I will let $\tau_1=1,\tau_2=+\infty$, so I can get GFLOP/s using one level adaptation. Compare them and I can get the value of \tau_1.
+\tau_1 is fixed. First, I will let $\tau_2=+\infty$, so I can get GFLOPS/s using zero and one level adaptation. Then, I will let $\tau_2=\tau_1$, so I can get GFLOP/s using zero and multi level adaptation. Compare them and I can get the value of \tau_2.
+
+pthread: I meet core dumped in the experiment when I try to create large number of threads. I think it's best to use the classical measure.
+
+OpenMP: First I get $\tau_1=64$, then I set $\tau_1=64$ and get $\tau_2=128$.
+
+CUDA: First I get $\tau_1=1024$, then I set $\tau_1=1024$ and get $\tau_2=2048$.
+
+Codes are in: s2015201953@202.112.113.77:./projectown/
+
+Conclusion
+I have accomplished efficient Strassen's matrix multipication parallel algorithms in CPUs and GPUs. In order to avoid too much recursion, I choose diffrent adaption to make sure the measure is fastest. My experiments show how to choose the best parameters and get the rough value.
+
+references
+IEEEexample:strassen[1] V. Strassen. Gaussian elimination is not optimal. \Numerische Mathematik\, 13: 354-356, 1969. 10.1007/BF02165411.
+IEEEexample:winograd[2] S. Winograd. On multiplication of $2\times 2$ matrices. \Linear Algebra and its Applications\, 4(4):381-388, 1971.
+IEEEexample:space[3] C. C. Douglas, M. Heroux, G. Slishman, and R. M. Smith. GEMMW: A Portable Level 3 BLAS Winograd Variant of Strassen's Matrix-Matrix Multiply Algorithm. \Journal of Computational Physis\, 110:1-10, Jan. 1994.
+IEEEexample:gpu[4] Li, Junjie, Sanjay Ranka, and Sartaj Sahni. "Strassen's Matrix Multiplication on GPUs." \international conference on parallel and distributed systems\, (2011): 157-164.
+
+
+
